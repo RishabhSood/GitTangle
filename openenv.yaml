@@ -1,0 +1,26 @@
+name: devsim
+display_name: "DevSim - Multi-Agent Sprint Simulator"
+description: >
+  Two developers collaborate on a software sprint. An RL agent controls both
+  developers, coordinating task assignments, PR reviews, and communication to
+  maximize feature delivery while avoiding merge conflicts and respecting
+  task dependencies.
+version: "1.0.0"
+tags:
+  - openenv
+  - multi-agent
+  - software-engineering
+  - project-management
+tasks:
+  - id: easy
+    name: Quick Launch
+    description: "5 independent tasks, no dependencies or conflicts. Complete the sprint efficiently."
+    difficulty: easy
+  - id: medium
+    name: Feature Pipeline
+    description: "8 tasks with dependency chains and merge conflict potential. PM changes priorities mid-sprint."
+    difficulty: medium
+  - id: hard
+    name: Crunch Time
+    description: "10+ tasks, complex DAG, tight deadline, PM changes requirements and injects emergency work."
+    difficulty: hard
