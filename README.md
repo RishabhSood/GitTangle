@@ -95,8 +95,13 @@ The PM fires deterministic events at scheduled steps: priority changes, requirem
 ## Setup
 
 ### Local
+Requires Python 3.11+. Install dependencies with [uv](https://docs.astral.sh/uv/):
 ```bash
-pip install -r requirements.txt
+uv sync
+```
+
+Run the OpenEnv FastAPI Server:
+```bash
 uvicorn app:app --port 7860
 ```
 

@@ -1,4 +1,4 @@
-# DevSim — Enhancement Ideas
+# GitTangle — Enhancement Ideas
 
 ## 1. Developer PIP (Performance Improvement Plan)
 If a dev causes 3+ conflicts or accumulates 5+ idle steps, they get "PIP'd" — locked out for 2 steps. The agent must run on a single dev and triage harder.
