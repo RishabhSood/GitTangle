@@ -1,5 +1,5 @@
 name: devsim
-display_name: "DevSim - Multi-Agent Sprint Simulator"
+display_name: "GitTangle - Multi-Agent Sprint Simulator"
 description: >
   Two developers collaborate on a software sprint. An RL agent controls both
   developers, coordinating task assignments, PR reviews, and communication to

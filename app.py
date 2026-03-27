@@ -11,7 +11,7 @@ from env.graders import grade
 from env.tasks import SCENARIOS
 
 app = FastAPI(
-    title="DevSim - Multi-Agent Sprint Simulator",
+    title="GitTangle - Multi-Agent Sprint Simulator",
     description="Two developers collaborate on a sprint. An RL agent controls both.",
     version="1.0.0",
 )

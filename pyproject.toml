@@ -1,16 +1,20 @@
 [project]
-name = "scaler-rl-hack"
+name = "GitTangle"
 version = "0.1.0"
-description = "Add your description here"
+description = "An OpenEnv RL environment where an AI agent controls two software developers collaborating on a sprint. The agent must coordinate task assignments, PR reviews, and communication to maximize feature delivery while avoiding merge conflicts and respecting task dependencies."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.135.2",
     "httpx>=0.28.1",
     "openai>=2.30.0",
+    "openenv-core>=0.2.1",
     "pydantic>=2.12.5",
     "pytest>=9.0.2",
     "python-dotenv>=1.2.2",
     "urllib3>=2.6.3",
     "uvicorn>=0.42.0",
 ]
+
+[project.scripts]
+server = "server.app:main"
