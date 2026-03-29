@@ -5,8 +5,8 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from env.models import Action, Observation, DevSimState
-from env.environment import DevSimEnv
+from env.models import Action, Observation, GitTangleState
+from env.environment import GitTangleEnv
 from env.graders import grade
 from env.tasks import SCENARIOS
 
@@ -16,7 +16,7 @@ app = FastAPI(
     version="1.0.0",
 )
 
-env = DevSimEnv()
+env = GitTangleEnv()
 
 
 class StepResponse(BaseModel):
@@ -70,7 +70,7 @@ def step(action: Action):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.get("/state", response_model=DevSimState)
+@app.get("/state", response_model=GitTangleState)
 def state():
     """Return full internal state."""
     return env.state()
@@ -79,15 +79,18 @@ def state():
 @app.get("/tasks", response_model=TasksResponse)
 def tasks():
     """Return list of available tasks and the action schema."""
-    task_list = [
-        TaskInfo(
-            id=cfg.scenario_id,
-            name=cfg.name,
-            difficulty=cfg.difficulty,
-            description=cfg.description,
-        )
-        for cfg in SCENARIOS.values()
-    ]
+    # Deduplicate (backward-compat aliases point to same config)
+    seen = set()
+    task_list = []
+    for cfg in SCENARIOS.values():
+        if cfg.scenario_id not in seen:
+            seen.add(cfg.scenario_id)
+            task_list.append(TaskInfo(
+                id=cfg.scenario_id,
+                name=cfg.name,
+                difficulty=cfg.difficulty,
+                description=cfg.description,
+            ))
     return TasksResponse(
         tasks=task_list,
         action_schema=Action.model_json_schema(),
@@ -120,4 +123,33 @@ def baseline():
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "healthy"}
+
+
+@app.get("/metadata")
+def metadata():
+    """Return environment metadata."""
+    return {
+        "name": "GitTangle",
+        "description": "Multi-Agent Sprint Simulator — an RL environment where an AI agent controls two developers collaborating on a software sprint.",
+    }
+
+
+@app.get("/schema")
+def schema():
+    """Return action, observation, and state JSON schemas."""
+    return {
+        "action": Action.model_json_schema(),
+        "observation": Observation.model_json_schema(),
+        "state": GitTangleState.model_json_schema(),
+    }
+
+
+@app.get("/summary")
+def summary():
+    """Return episode summary for the current scenario."""
+    from env.environment import build_episode_summary
+    if env._scenario_id not in SCENARIOS:
+        raise HTTPException(status_code=400, detail="No episode in progress.")
+    config = SCENARIOS[env._scenario_id]
+    return {"summary": build_episode_summary(config)}

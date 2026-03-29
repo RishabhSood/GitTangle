@@ -51,8 +51,8 @@ class ProjectTask(BaseModel):
     task_id: str
     title: str
     task_type: TaskType
-    effort_remaining: int
-    effort_total: int
+    effort_remaining: float
+    effort_total: float
     status: TaskStatus = TaskStatus.BACKLOG
     assigned_to: Optional[str] = None
     depends_on: list[str] = []
@@ -60,6 +60,8 @@ class ProjectTask(BaseModel):
     priority: int  # 1 (highest) - 5 (lowest)
     pr_id: Optional[str] = None
     progress_pct: float = 0.0
+    rejection_on_first_review: bool = False
+    review_count: int = 0
 
 
 class PMEvent(BaseModel):
@@ -93,11 +95,12 @@ class TaskObservation(BaseModel):
     task_id: str
     title: str
     task_type: TaskType
-    effort_remaining: int
-    effort_total: int
+    effort_remaining: float
+    effort_total: float
     status: TaskStatus
     assigned_to: Optional[str] = None
     depends_on: list[str] = []
+    conflicts_with: list[str] = []
     priority: int
     progress_pct: float
     pr_id: Optional[str] = None
@@ -123,6 +126,9 @@ class DevStatus(BaseModel):
     current_action: str = "idle"
     steps_idle: int = 0
     tasks_completed: int = 0
+    conflicts_caused: int = 0
+    pip_active: bool = False
+    pip_steps_remaining: int = 0
 
 
 class SprintProgress(BaseModel):
@@ -144,6 +150,8 @@ class Observation(BaseModel):
     dev2_status: DevStatus
     sprint_progress: SprintProgress
     merge_conflicts: list[str] = []
+    dev_specializations: dict[str, list[str]] = {}
+    episode_summary: Optional[str] = None
 
 
 # --- Reward model ---
@@ -155,7 +163,7 @@ class Reward(BaseModel):
 
 # --- Full state model ---
 
-class DevSimState(BaseModel):
+class GitTangleState(BaseModel):
     scenario_id: str = ""
     tasks: list[ProjectTask] = []
     pr_queue: list[PRObservation] = []
@@ -176,3 +184,11 @@ class ScenarioConfig(BaseModel):
     max_steps: int
     tasks: list[ProjectTask]
     pm_events: list[PMEvent] = []
+    # Mechanic flags
+    enable_pip: bool = False
+    pip_conflict_threshold: int = 3
+    pip_idle_threshold: int = 5
+    pip_duration: int = 2
+    enable_review_rejection: bool = False
+    enable_specialization: bool = False
+    dev_specializations: dict[str, list[TaskType]] = {}

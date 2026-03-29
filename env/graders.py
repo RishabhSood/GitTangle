@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from env.models import DevSimState, TaskStatus
+from env.models import GitTangleState, TaskStatus
 
 
-def grade_easy(state: DevSimState) -> float:
+def grade_easy(state: GitTangleState) -> float:
     """Grade the easy scenario: completion + efficiency."""
     total_tasks = len(state.tasks)
     if total_tasks == 0:
@@ -23,7 +23,7 @@ def grade_easy(state: DevSimState) -> float:
     return round(max(0.0, min(1.0, score)), 4)
 
 
-def grade_medium(state: DevSimState) -> float:
+def grade_medium(state: GitTangleState) -> float:
     """Grade the medium scenario: completion + priority + efficiency - conflicts."""
     total_tasks = len(state.tasks)
     if total_tasks == 0:
@@ -56,7 +56,7 @@ def grade_medium(state: DevSimState) -> float:
     return round(max(0.0, min(1.0, score)), 4)
 
 
-def grade_hard(state: DevSimState) -> float:
+def grade_hard(state: GitTangleState) -> float:
     """Grade the hard scenario: priority-weighted completion + PM responsiveness + comms - conflicts."""
     total_tasks = len(state.tasks)
     if total_tasks == 0:
@@ -76,17 +76,12 @@ def grade_hard(state: DevSimState) -> float:
     total_conflicts = state.info.get("total_conflicts_created", 0)
     conflict_penalty = min(total_conflicts * 0.08, 0.25)
 
-    pm_messages_total = state.info.get("total_pm_messages", 0)
-    pm_acknowledged = state.info.get("pm_messages_acknowledged", 0)
-    pm_responsiveness = pm_acknowledged / max(pm_messages_total, 1)
-
     comms_used = state.info.get("communications_sent", 0)
     comm_score = min(comms_used / 3.0, 1.0)
 
     score = (
-        0.50 * weighted_completion
-        + 0.20 * pm_responsiveness
-        + 0.10 * comm_score
+        0.60 * weighted_completion
+        + 0.20 * comm_score
         - conflict_penalty
     )
     return round(max(0.0, min(1.0, score)), 4)
@@ -99,9 +94,18 @@ GRADERS = {
 }
 
 
-def grade(state: DevSimState) -> float:
-    """Grade the current state using the appropriate grader."""
+def grade(state: GitTangleState) -> float:
+    """Grade the current state using the appropriate grader.
+
+    Dispatches by exact scenario_id first, then falls back to difficulty prefix
+    (e.g. "easy_3" → "easy").
+    """
     grader = GRADERS.get(state.scenario_id)
-    if grader is None:
-        return 0.0
-    return grader(state)
+    if grader is not None:
+        return grader(state)
+    # Fall back to difficulty prefix: "easy_3" → "easy"
+    difficulty = state.scenario_id.rsplit("_", 1)[0]
+    grader = GRADERS.get(difficulty)
+    if grader is not None:
+        return grader(state)
+    return 0.0

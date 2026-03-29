@@ -1,4 +1,4 @@
-name: devsim
+name: gittangle
 display_name: "GitTangle - Multi-Agent Sprint Simulator"
 description: >
   Two developers collaborate on a software sprint. An RL agent controls both

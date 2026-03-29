@@ -46,9 +46,13 @@ Strategy guidelines:
 - When conflicts occur: BOTH devs must sync_with_dev first. This auto-resolves the higher-priority task (creates its PR). Then use fix_conflict on the remaining task to create its PR.
 - Use sync_with_dev before completing a task that conflicts with an in-progress task to prevent conflicts
 - Use ask_pm_clarification on high-effort tasks to reduce their effort
-- Acknowledge PM messages by communicating
 - Keep both devs busy — avoid idle actions
 - Two devs cannot work on the same task or review the same PR simultaneously
+
+Advanced mechanics (may be active depending on scenario):
+- Developer Specialization: Each dev may specialize in certain task types. Working on specialty = normal speed. Working outside specialty = half speed (0.5 effort/step). Testing tasks are always normal speed. Check dev_specializations in observation.
+- Code Review Rejection: Some tasks get rejected on first PR review — task goes back to IN_PROGRESS with +1 effort. Rework and resubmit. Second review always succeeds.
+- Developer PIP: If a dev causes too many conflicts or idles too much, they get locked out for N steps. During PIP, all actions forced to idle. Avoid triggering PIP by staying productive and avoiding conflicts.
 
 Only output the JSON. No explanation text.
 Only include fields that are relevant to the chosen action_type. Omit null/unused fields."""
@@ -119,9 +123,9 @@ def build_action_hint(obs: dict) -> str:
     # PM messages
     pm = obs.get("pm_messages", [])
     if pm:
-        msgs = [m["message"] for m in pm if not m.get("acknowledged")]
+        msgs = [m["message"] for m in pm]
         if msgs:
-            lines.append(f"UNREAD PM MESSAGES: {len(msgs)} — use communicate action to acknowledge")
+            lines.append(f"PM MESSAGES: {len(msgs)} — read for context on priority/requirement changes")
 
     # Sprint status
     sp = obs.get("sprint_progress", {})
@@ -131,11 +135,24 @@ def build_action_hint(obs: dict) -> str:
     # Conflict warnings
     for t in obs.get("task_board", []):
         if t["status"] in ("backlog", "in_progress") and t.get("conflicts_with"):
-            # Check if conflicting task is also workable
             for ct_id in t.get("conflicts_with", []):
                 ct = next((x for x in obs.get("task_board", []) if x["task_id"] == ct_id), None)
                 if ct and ct["status"] in ("backlog", "in_progress"):
                     lines.append(f"WARNING: {t['task_id']} conflicts with {ct_id} — don't work both simultaneously!")
+
+    # PIP warnings
+    dev1 = obs.get("dev1_status", {})
+    dev2 = obs.get("dev2_status", {})
+    if dev1.get("pip_active"):
+        lines.append(f"WARNING: dev1 is PIP'd for {dev1.get('pip_steps_remaining', '?')} more steps — all actions forced idle!")
+    if dev2.get("pip_active"):
+        lines.append(f"WARNING: dev2 is PIP'd for {dev2.get('pip_steps_remaining', '?')} more steps — all actions forced idle!")
+
+    # Specialization info
+    specs = obs.get("dev_specializations", {})
+    if specs:
+        for dev_id, spec_list in specs.items():
+            lines.append(f"{dev_id} specializes in: {', '.join(spec_list)} (half speed on other types except testing)")
 
     return "\n".join(lines)
 
@@ -166,6 +183,11 @@ def run_episode(base_url: str, task_id: str, client: OpenAI, model: str) -> floa
     resp.raise_for_status()
     obs = resp.json()
 
+    # Print episode summary
+    summary = obs.get("episode_summary", "")
+    if summary:
+        print(summary)
+
     done = False
     step_count = 0
     max_steps = 50  # safety limit
@@ -180,7 +202,7 @@ def run_episode(base_url: str, task_id: str, client: OpenAI, model: str) -> floa
         if prev_reward is not None:
             feedback = f"=== PREVIOUS STEP FEEDBACK ===\nReward: {prev_reward:+.1f}\n"
             if prev_breakdown:
-                details = [f"  {k}: {v:+.1f}" for k, v in prev_breakdown.items() if v != 0]
+                details = [f"  {k}: {v:+.1f}" for k, v in prev_breakdown.items() if v != 0 or "waiting" in k]
                 if details:
                     feedback += "Breakdown:\n" + "\n".join(details) + "\n"
             if prev_reward < 0:
@@ -223,9 +245,9 @@ def run_episode(base_url: str, task_id: str, client: OpenAI, model: str) -> floa
             d2_desc = _describe_action("dev2", action["dev2_action"])
 
             # Mark invalid actions
-            if "dev1_invalid_action_penalty" in breakdown:
+            if any(k.startswith("dev1_invalid") for k in breakdown):
                 d1_desc += " INVALID→idle"
-            if "dev2_invalid_action_penalty" in breakdown:
+            if any(k.startswith("dev2_invalid") for k in breakdown):
                 d2_desc += " INVALID→idle"
 
             # Annotate work actions that created PRs (task completed)
@@ -298,6 +320,13 @@ def run_episode(base_url: str, task_id: str, client: OpenAI, model: str) -> floa
     return score
 
 
+ALL_SCENARIOS = [
+    "easy_1", "easy_2", "easy_3", "easy_4", "easy_5",
+    "medium_1", "medium_2", "medium_3", "medium_4", "medium_5",
+    "hard_1", "hard_2", "hard_3", "hard_4", "hard_5",
+]
+
+
 def run_baseline(base_url: str = "http://localhost:7860", tasks: list[str] | None = None) -> dict[str, float]:
     """Run the baseline agent on selected tasks."""
     api_key = os.environ.get("OPENAI_API_KEY", "ollama")
@@ -305,7 +334,7 @@ def run_baseline(base_url: str = "http://localhost:7860", tasks: list[str] | Non
     model = os.environ.get("LLM_MODEL", DEFAULT_LLM_MODEL)
 
     if tasks is None:
-        tasks = ["easy", "medium", "hard"]
+        tasks = ALL_SCENARIOS
 
     client = OpenAI(api_key=api_key, base_url=llm_base_url)
     scores = {}
@@ -314,9 +343,24 @@ def run_baseline(base_url: str = "http://localhost:7860", tasks: list[str] | Non
 
     for task_id in tasks:
         print(f"\nRunning baseline on: {task_id}")
+        # Print episode summary from reset
+        obs_resp = None
         score = run_episode(base_url, task_id, client, model)
         scores[task_id] = score
         print(f"  Score: {score:.4f}")
+
+    # Print per-difficulty averages
+    by_difficulty: dict[str, list[float]] = {"easy": [], "medium": [], "hard": []}
+    for tid, s in scores.items():
+        diff = tid.rsplit("_", 1)[0]
+        if diff in by_difficulty:
+            by_difficulty[diff].append(s)
+
+    if len(scores) > 1:
+        print("\n--- Per-Difficulty Averages ---")
+        for diff, vals in by_difficulty.items():
+            if vals:
+                print(f"  {diff}: {sum(vals)/len(vals):.4f} (n={len(vals)})")
 
     return scores
 
@@ -324,15 +368,22 @@ def run_baseline(base_url: str = "http://localhost:7860", tasks: list[str] | Non
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="DevSim baseline inference")
+    parser = argparse.ArgumentParser(description="GitTangle baseline inference")
     parser.add_argument("--url", default="http://localhost:7860", help="Environment server URL")
     parser.add_argument(
-        "--task", default="all", choices=["easy", "medium", "hard", "all"],
+        "--task", default="all",
+        choices=ALL_SCENARIOS + ["easy", "medium", "hard", "all"],
         help="Which task to run (default: all)",
     )
     args = parser.parse_args()
 
-    tasks = ["easy", "medium", "hard"] if args.task == "all" else [args.task]
+    if args.task == "all":
+        tasks = ALL_SCENARIOS
+    elif args.task in ("easy", "medium", "hard"):
+        tasks = [t for t in ALL_SCENARIOS if t.startswith(args.task)]
+    else:
+        tasks = [args.task]
+
     scores = run_baseline(base_url=args.url, tasks=tasks)
     print("\n--- Baseline Scores ---")
     for tid, s in scores.items():

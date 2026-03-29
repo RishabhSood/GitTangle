@@ -4,7 +4,7 @@ An OpenEnv RL environment where an AI agent controls two software developers col
 
 ## Why This Environment?
 
-Real software teams face coordination challenges daily: dependency management, merge conflicts, shifting priorities, and resource allocation. DevSim models these dynamics in a tractable RL environment, making it useful for evaluating an agent's ability to plan, prioritize, and coordinate under constraints.
+Real software teams face coordination challenges daily: dependency management, merge conflicts, shifting priorities, and resource allocation. GitTangle models these dynamics in a tractable RL environment, making it useful for evaluating an agent's ability to plan, prioritize, and coordinate under constraints.
 
 ## Action Space
 
@@ -41,7 +41,7 @@ Each step returns:
 |-------|-------------|
 | `task_board` | All tasks with status, effort, priority, dependencies, conflict info |
 | `pr_queue` | Pending PRs awaiting review (includes `submitted_by` for self-review prevention) |
-| `pm_messages` | Unacknowledged PM messages |
+| `pm_messages` | PM messages (observation-only context) |
 | `dev1_status` / `dev2_status` | Current activity, idle count, tasks completed |
 | `sprint_progress` | Step counter, task counts by status, velocity |
 | `merge_conflicts` | Task IDs currently in HAS_CONFLICT status |
@@ -66,7 +66,7 @@ Conflicts are detected at **task completion time**, not during simultaneous work
 4. Both PRs get reviewed by the other dev → both DONE
 
 ### PM Events
-The PM fires deterministic events at scheduled steps: priority changes, requirement changes (increased effort), new task injections, and deadline warnings. Unacknowledged PM messages incur a penalty after 3 steps.
+The PM fires deterministic events at scheduled steps: priority changes, requirement changes (increased effort), new task injections, and deadline warnings.
 
 ### Communication
 - `ask_pm_clarification`: Reduces a task's effort by 1 (once per task). Useful for high-effort tasks.
@@ -89,7 +89,7 @@ The PM fires deterministic events at scheduled steps: priority changes, requirem
 ### Hard: Crunch Time
 10 tasks, complex DAG, multiple conflict pairs. PM changes requirements (step 5), priorities (step 10), and injects a new emergency task (step 14). Total effort exceeds budget — cannot complete everything. 20 steps.
 - **Challenge**: Triage under pressure, PM responsiveness, strategic communication
-- **Grading**: 50% priority-weighted completion + 20% PM responsiveness + 10% communication - conflict penalty
+- **Grading**: 60% priority-weighted completion + 20% communication - conflict penalty
 - **Expected score range**: 0.1 - 0.65
 
 ## Setup
@@ -107,8 +107,8 @@ uvicorn app:app --port 7860
 
 ### Docker
 ```bash
-docker build -t devsim .
-docker run -p 7860:7860 devsim
+docker build -t gittangle .
+docker run -p 7860:7860 gittangle
 ```
 
 ### Run Baseline
@@ -163,7 +163,6 @@ Rewards are provided per-step (not just end-of-episode) to guide agent learning:
 | Merge conflict created | -3.0 |
 | Invalid action (converted to idle) | -1.0 |
 | Wasted sync (no conflicts to discuss) | -1.0 |
-| Ignoring PM message (3+ steps) | -0.5/msg/step |
 
 ## Baseline Scores
 

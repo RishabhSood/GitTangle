@@ -13,4 +13,5 @@ openrouterkey.txt
 
 .env
 baseline/inference_gemini.py
+baseline/inference_gemini_minimal.py
 
