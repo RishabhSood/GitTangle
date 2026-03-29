@@ -1,3 +1,12 @@
+---
+title: GitTangle
+emoji: 🔀
+colorFrom: blue
+colorTo: purple
+sdk: docker
+app_port: 7860
+---
+
 # GitTangle - Multi-Agent Sprint Simulator
 
 An OpenEnv RL environment where an AI agent controls two software developers collaborating on a sprint. The agent must coordinate task assignments, PR reviews, and communication to maximize feature delivery while avoiding merge conflicts and respecting task dependencies.

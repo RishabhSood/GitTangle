@@ -1,0 +1,13 @@
+.venv
+__pycache__
+*.pyc
+.env
+.git
+.pytest_cache
+tests/
+ideas.md
+sample_inference.py
+baseline/inference_gemini.py
+baseline/inference_gemini_minimal.py
+openrouterkey.txt
+.claude/
