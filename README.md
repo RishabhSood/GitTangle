@@ -163,11 +163,3 @@ Rewards are provided per-step (not just end-of-episode) to guide agent learning:
 | Merge conflict created | -3.0 |
 | Invalid action (converted to idle) | -1.0 |
 | Wasted sync (no conflicts to discuss) | -1.0 |
-
-## Baseline Scores
-
-| Task | qwen3.5:9b | Gemini 2.5 Flash |
-|------|-----------|-----------------|
-| Easy | 0.85 | 0.85 |
-| Medium | - | 0.53 |
-| Hard | - | 0.41 |
