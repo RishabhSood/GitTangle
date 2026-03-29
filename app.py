@@ -193,6 +193,8 @@ def landing():
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700;900&display=swap');
   * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+  ::selection {{ background: rgba(236, 72, 153, 0.4); color: #fff; }}
+  ::-moz-selection {{ background: rgba(236, 72, 153, 0.4); color: #fff; }}
   body {{ font-family: 'JetBrains Mono', monospace;
          background: #0a0a0f; color: #b0b8c8; line-height: 1.6;
          background-image: radial-gradient(ellipse at 50% 0%, rgba(88, 28, 135, 0.15) 0%, transparent 60%),
