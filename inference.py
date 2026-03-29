@@ -26,10 +26,16 @@ MAX_TOKENS = 1024
 IDLE_ACTION = {"action_type": "idle"}
 FALLBACK_ACTION = {"dev1_action": IDLE_ACTION, "dev2_action": IDLE_ACTION}
 
+# ALL_SCENARIOS = [
+#     "easy_1", "easy_2", "easy_3", "easy_4", "easy_5",
+#     "medium_1", "medium_2", "medium_3", "medium_4", "medium_5",
+#     "hard_1", "hard_2", "hard_3", "hard_4", "hard_5",
+# ]
+
 ALL_SCENARIOS = [
-    "easy_1", "easy_2", "easy_3", "easy_4", "easy_5",
-    "medium_1", "medium_2", "medium_3", "medium_4", "medium_5",
-    "hard_1", "hard_2", "hard_3", "hard_4", "hard_5",
+    "easy_3",
+    "medium_3", "medium_5",
+    "hard_1", "hard_2", "hard_5"
 ]
 
 SYSTEM_PROMPT = """You control two software developers (dev1 and dev2) in a sprint simulation.
