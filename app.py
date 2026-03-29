@@ -156,6 +156,11 @@ def summary():
     return {"summary": build_episode_summary(config)}
 
 
+@app.get("/web", response_class=HTMLResponse)
+def hf_space_landing():
+    return landing()
+
+
 @app.get("/", response_class=HTMLResponse)
 def landing():
     """Landing page for HF Spaces."""
