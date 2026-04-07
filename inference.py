@@ -110,11 +110,13 @@ def _fmt_action(dev: str, action: dict) -> str:
     return f"{dev}:idle"
 
 
-def run_episode(client: OpenAI, task_id: str) -> float:
-    """Run one episode and return grader score."""
+def run_episode(client: OpenAI, task_id: str) -> tuple[float, int]:
+    """Run one episode and return (grader score, steps taken)."""
     resp = httpx.post(f"{ENV_URL}/reset", params={"task_id": task_id}, timeout=30)
     resp.raise_for_status()
     obs = resp.json()
+
+    print(f"[START] task={task_id}", flush=True)
 
     # Print episode summary
     summary = obs.get("episode_summary", "")
@@ -214,6 +216,7 @@ def run_episode(client: OpenAI, task_id: str) -> float:
                     events.append("AUTO-RESOLVED")
 
             event_str = f" [{', '.join(events)}]" if events else ""
+            print(f"[STEP] step={step} reward={prev_reward:.4f}", flush=True)
             print(f"  Step {step}: {d1_desc} | {d2_desc} | reward={prev_reward:+.1f}{event_str}")
             step += 1
         except Exception as e:
@@ -225,11 +228,14 @@ def run_episode(client: OpenAI, task_id: str) -> float:
             done = result["done"]
             prev_reward = result["reward"]
             prev_breakdown = result.get("reward_breakdown", {})
+            print(f"[STEP] step={step} reward={prev_reward:.4f}", flush=True)
             step += 1
 
     grader_resp = httpx.post(f"{ENV_URL}/grader", timeout=30)
     grader_resp.raise_for_status()
-    return grader_resp.json()["score"]
+    score = grader_resp.json()["score"]
+    print(f"[END] task={task_id} score={score:.4f} steps={step}", flush=True)
+    return score, step
 
 
 def main() -> None:
@@ -241,9 +247,9 @@ def main() -> None:
     for task_id in ALL_SCENARIOS:
         print(f"\n{'='*50}")
         print(f"Running: {task_id}")
-        score = run_episode(client, task_id)
+        score, steps = run_episode(client, task_id)
         scores[task_id] = score
-        print(f"Score: {score:.4f}")
+        print(f"Score: {score:.4f} in {steps} steps")
 
     # Per-difficulty averages
     by_diff: dict[str, list[float]] = {"easy": [], "medium": [], "hard": []}
