@@ -110,13 +110,13 @@ def _fmt_action(dev: str, action: dict) -> str:
     return f"{dev}:idle"
 
 
-def run_episode(client: OpenAI, task_id: str) -> tuple[float, int]:
-    """Run one episode and return (grader score, steps taken)."""
+def run_episode(client: OpenAI, task_id: str) -> tuple[float, int, list[float]]:
+    """Run one episode and return (grader score, steps taken, rewards list)."""
     resp = httpx.post(f"{ENV_URL}/reset", params={"task_id": task_id}, timeout=30)
     resp.raise_for_status()
     obs = resp.json()
 
-    print(f"[START] task={task_id}", flush=True)
+    print(f"[START] task={task_id} env=gittangle model={MODEL_NAME}", flush=True)
 
     # Print episode summary
     summary = obs.get("episode_summary", "")
@@ -128,6 +128,7 @@ def run_episode(client: OpenAI, task_id: str) -> tuple[float, int]:
     max_steps = 50
     prev_reward = None
     prev_breakdown = None
+    all_rewards: list[float] = []
 
     while not done and step < max_steps:
         # Build user prompt: feedback + raw observation
@@ -216,7 +217,10 @@ def run_episode(client: OpenAI, task_id: str) -> tuple[float, int]:
                     events.append("AUTO-RESOLVED")
 
             event_str = f" [{', '.join(events)}]" if events else ""
-            print(f"[STEP] step={step} reward={prev_reward:.4f}", flush=True)
+            action_str = f"dev1={d1a.get('action_type','idle')}|dev2={d2a.get('action_type','idle')}"
+            done_str = str(done).lower()
+            all_rewards.append(prev_reward)
+            print(f"[STEP] step={step} action={action_str} reward={prev_reward:.2f} done={done_str} error=null", flush=True)
             print(f"  Step {step}: {d1_desc} | {d2_desc} | reward={prev_reward:+.1f}{event_str}")
             step += 1
         except Exception as e:
@@ -228,14 +232,20 @@ def run_episode(client: OpenAI, task_id: str) -> tuple[float, int]:
             done = result["done"]
             prev_reward = result["reward"]
             prev_breakdown = result.get("reward_breakdown", {})
-            print(f"[STEP] step={step} reward={prev_reward:.4f}", flush=True)
+            all_rewards.append(prev_reward)
+            done_str = str(done).lower()
+            print(f"[STEP] step={step} action=idle|idle reward={prev_reward:.2f} done={done_str} error={e}", flush=True)
             step += 1
 
     grader_resp = httpx.post(f"{ENV_URL}/grader", timeout=30)
     grader_resp.raise_for_status()
     score = grader_resp.json()["score"]
-    print(f"[END] task={task_id} score={score:.4f} steps={step}", flush=True)
-    return score, step
+    # Clamp to strictly (0, 1) in case server hasn't updated yet
+    score = max(0.01, min(0.99, score))
+    success = str(score > 0.1).lower()
+    rewards_str = ",".join(f"{r:.2f}" for r in all_rewards)
+    print(f"[END] success={success} steps={step} score={score:.3f} rewards={rewards_str}", flush=True)
+    return score, step, all_rewards
 
 
 def main() -> None:
@@ -247,7 +257,7 @@ def main() -> None:
     for task_id in ALL_SCENARIOS:
         print(f"\n{'='*50}")
         print(f"Running: {task_id}")
-        score, steps = run_episode(client, task_id)
+        score, steps, rewards = run_episode(client, task_id)
         scores[task_id] = score
         print(f"Score: {score:.4f} in {steps} steps")
 

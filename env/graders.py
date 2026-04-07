@@ -2,12 +2,20 @@ from __future__ import annotations
 
 from env.models import GitTangleState, TaskStatus
 
+# Clamp scores to strictly (0, 1) — validator rejects exactly 0.0 or 1.0
+_SCORE_MIN = 0.01
+_SCORE_MAX = 0.99
+
+
+def _clamp(score: float) -> float:
+    return round(max(_SCORE_MIN, min(_SCORE_MAX, score)), 4)
+
 
 def grade_easy(state: GitTangleState) -> float:
     """Grade the easy scenario: completion + efficiency."""
     total_tasks = len(state.tasks)
     if total_tasks == 0:
-        return 0.0
+        return _SCORE_MIN
 
     tasks_done = sum(1 for t in state.tasks if t.status == TaskStatus.DONE)
     steps_used = state.sprint_progress.current_step
@@ -20,14 +28,14 @@ def grade_easy(state: GitTangleState) -> float:
     )
 
     score = 0.7 * completion_score + 0.3 * efficiency_score
-    return round(max(0.0, min(1.0, score)), 4)
+    return _clamp(score)
 
 
 def grade_medium(state: GitTangleState) -> float:
     """Grade the medium scenario: completion + priority + efficiency - conflicts."""
     total_tasks = len(state.tasks)
     if total_tasks == 0:
-        return 0.0
+        return _SCORE_MIN
 
     tasks_done = sum(1 for t in state.tasks if t.status == TaskStatus.DONE)
     high_pri_done = sum(
@@ -53,14 +61,14 @@ def grade_medium(state: GitTangleState) -> float:
         + 0.15 * efficiency_score
         - conflict_penalty
     )
-    return round(max(0.0, min(1.0, score)), 4)
+    return _clamp(score)
 
 
 def grade_hard(state: GitTangleState) -> float:
     """Grade the hard scenario: priority-weighted completion + PM responsiveness + comms - conflicts."""
     total_tasks = len(state.tasks)
     if total_tasks == 0:
-        return 0.0
+        return _SCORE_MIN
 
     priority_weights = {1: 5, 2: 3, 3: 2, 4: 1}
     weighted_done = sum(
@@ -84,7 +92,7 @@ def grade_hard(state: GitTangleState) -> float:
         + 0.20 * comm_score
         - conflict_penalty
     )
-    return round(max(0.0, min(1.0, score)), 4)
+    return _clamp(score)
 
 
 GRADERS = {
@@ -108,4 +116,4 @@ def grade(state: GitTangleState) -> float:
     grader = GRADERS.get(difficulty)
     if grader is not None:
         return grader(state)
-    return 0.0
+    return _SCORE_MIN

@@ -355,7 +355,7 @@ class TestGraders:
             env.step(Action(dev1_action=idle, dev2_action=idle))
         state = env.state()
         score = grade(state)
-        assert score == 0.0
+        assert score == 0.01  # clamped minimum (strictly > 0)
 
     def test_easy_grader_bounds(self, env):
         env.reset("easy")
