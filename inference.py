@@ -240,8 +240,6 @@ def run_episode(client: OpenAI, task_id: str) -> tuple[float, int, list[float]]:
     grader_resp = httpx.post(f"{ENV_URL}/grader", timeout=30)
     grader_resp.raise_for_status()
     score = grader_resp.json()["score"]
-    # Clamp to strictly (0, 1) in case server hasn't updated yet
-    score = max(0.01, min(0.99, score))
     success = str(score > 0.1).lower()
     rewards_str = ",".join(f"{r:.2f}" for r in all_rewards)
     print(f"[END] success={success} steps={step} score={score:.3f} rewards={rewards_str}", flush=True)
